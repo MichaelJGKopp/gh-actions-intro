@@ -19,6 +19,9 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      IMAGE_NAME: michaeljgkopp/gh-actions-intro
+
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 21
@@ -34,12 +37,14 @@ jobs:
       id: extract_version
       run: echo "VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
 
-    - name: Build & push Docker image
-      uses: mr-smithers-excellent/docker-build-push@v6
-      with:
-        image: michaeljgkopp/gh-actions-intro
-        tags: ${{ env.VERSION }},latest
-        registry: docker.io
-        dockerfile: Dockerfile
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+    - name: Build & push Docker image with Spring Boot
+      env:
+        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      run: |
+        echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        docker tag ${{ env.IMAGE_NAME }}:${{ env.VERSION }} ${{ env.IMAGE_NAME }}:latest
+        docker push ${{ env.IMAGE_NAME }}:${{ env.VERSION }}
+        docker push ${{ env.IMAGE_NAME }}:latest
+        docker logout
